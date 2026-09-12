@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SYSTEM_FAILURE.exe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --bg1:#0d0a2e;
+    --bg2:#3a0d6e;
+    --bg3:#1b0b3d;
+    --win-title:#c9c3e8;
+    --win-body:#050505;
+    --err-red:#ff2b2b;
+    --term-green:#3dff6b;
+    --taskbar:#0a0a12;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;overflow:hidden;
+    background: radial-gradient(circle at 30% 20%, #4b1a8f 0%, transparent 45%),
+                radial-gradient(circle at 80% 70%, #1a2a7a 0%, transparent 50%),
+                linear-gradient(160deg, var(--bg1), var(--bg2) 55%, var(--bg3));
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    cursor:default;
+    position:relative;
+  }
+  #desktop{
+    position:absolute; inset:0; bottom:40px; overflow:hidden;
+  }
+
+  /* glitch color bars */
+  .glitchbar{
+    position:absolute; height:22px; opacity:.85; mix-blend-mode:screen;
+    animation: barflicker 2.6s infinite steps(2);
+  }
+  @keyframes barflicker{
+    0%,40%{opacity:.85; transform:translateX(0);}
+    41%{opacity:0;}
+    60%{opacity:.85; transform:translateX(6px);}
+    100%{opacity:.2;}
+  }
+
+  /* floating ERROR text */
+  .bgerror{
+    position:absolute; color:var(--err-red); font-weight:800; font-size:42px;
+    font-family: Impact, 'Arial Black', sans-serif; letter-spacing:2px;
+    text-shadow: 2px 0 #00eaff, -2px 0 #ff00c8;
+    user-select:none; pointer-events:none;
+    animation: jitter .18s infinite steps(2);
+    opacity:.9;
+  }
+  @keyframes jitter{
+    0%{transform:translate(0,0) skewX(0deg);}
+    50%{transform:translate(1px,-1px) skewX(1deg);}
+    100%{transform:translate(-1px,1px) skewX(-1deg);}
+  }
+
+  .icon-box{
+    position:absolute; width:76px; height:56px; background:#efeef5; border:2px solid #222;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px;
+    box-shadow:4px 4px 0 rgba(0,0,0,.35);
+  }
+
+  .window{
+    position:absolute;
+    background:#e9e6f5;
+    border:1px solid #8f88b8;
+    box-shadow:0 12px 30px rgba(0,0,0,.55);
+    animation: pop .25s ease-out;
+    display:flex; flex-direction:column;
+  }
+  @keyframes pop{
+    from{ transform: scale(.85); opacity:0; }
+    to{ transform: scale(1); opacity:1; }
+  }
+  .window.closing{
+    animation: closeAnim .18s ease-in forwards;
+  }
+  @keyframes closeAnim{
+    to{ transform: scale(.7); opacity:0; }
+  }
+  .titlebar{
+    background: linear-gradient(180deg,#d8d3ef,#b7aee0);
+    height:26px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 6px; font-size:12px; color:#2b2440; font-weight:600; user-select:none;
+    border-bottom:1px solid #8f88b8; flex-shrink:0;
+  }
+  .titlebar span.label{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .closebtn{
+    width:18px; height:18px; background:#fff; border:1px solid #555;
+    display:flex; align-items:center; justify-content:center; font-size:11px; cursor:pointer;
+    line-height:1;
+  }
+  .closebtn:hover{ background:var(--err-red); color:#fff; }
+
+  .win-body{
+    flex:1; background:var(--win-body); position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .eyewrap{ position:relative; width:80%; height:80%; }
+  .caption{
+    position:absolute; bottom:6px; left:0; right:0; text-align:center;
+    color:#eee; font-size:13px; font-family: 'Consolas', monospace; opacity:.85;
+    text-shadow:0 0 6px #000;
+  }
+  .error-stamp{
+    position:absolute; top:-6px; left:10%; color:var(--err-red); font-weight:800;
+    font-family: Impact, 'Arial Black', sans-serif; font-size:34px;
+    text-shadow: 2px 0 #00eaff, -2px 0 #ff00c8; animation: jitter .2s infinite steps(2);
+    pointer-events:none;
+  }
+
+  /* eye */
+  .eye-svg{ width:100%; height:100%; }
+
+  /* terminal window */
+  .term-body{
+    background:#000; color:var(--term-green); font-family:'Consolas','Courier New',monospace;
+    font-size:12px; line-height:1.35; padding:8px; overflow:hidden; height:100%;
+    display:block; text-align:left; white-space:pre-wrap; word-break:break-all;
+  }
+  .term-body .cmdline{ color:#7fffb0; }
+  .term-body .warn{ color:#ffdf3d; }
+  .term-body .flood{ color:#ff5050; }
+
+  #taskbar{
+    position:absolute; left:0; right:0; bottom:0; height:40px; background:var(--taskbar);
+    display:flex; align-items:center; padding:0 8px; gap:8px; border-top:1px solid #222;
+    z-index:9999;
+  }
+  #startbtn{
+    width:28px; height:28px; background:#1e88ff; display:flex; align-items:center; justify-content:center;
+    border-radius:2px; font-size:14px; color:#fff; font-weight:700;
+  }
+  #searchbox{
+    flex:1; max-width:260px; height:26px; background:#1a1a22; border:1px solid #333; border-radius:3px;
+    color:#999; font-size:12px; display:flex; align-items:center; padding:0 8px;
+  }
+  #clock{ margin-left:auto; color:#ccc; font-size:12px; font-family:Consolas,monospace; }
+
+  #finalscreen{
+    position:absolute; inset:0; background:#000; color:var(--err-red);
+    display:none; align-items:center; justify-content:center; flex-direction:column;
+    font-family:'Consolas',monospace; text-align:center; z-index:99999;
+  }
+  #finalscreen h1{ font-size:38px; letter-spacing:4px; text-shadow:2px 0 #00eaff,-2px 0 #ff00c8; }
+  #finalscreen p{ color:#999; font-size:13px; max-width:480px; }
+  #restartbtn{
+    margin-top:18px; background:#111; color:var(--term-green); border:1px solid var(--term-green);
+    padding:8px 18px; font-family:Consolas,monospace; cursor:pointer; font-size:13px;
+  }
+  #restartbtn:hover{ background:var(--term-green); color:#000; }
+</style>
+</head>
+<body>
+
+<div id="desktop"></div>
+
+<div id="taskbar">
+  <div id="startbtn">&#8862;</div>
+  <div id="searchbox">Search Windows</div>
+  <div id="clock">00:00</div>
+</div>
+
+<div id="finalscreen">
+  <h1>SYSTEM RESTORED</h1>
+  <p>All rogue windows were terminated. Nothing was actually broken &mdash; this was just a harmless desktop prank running in your browser.</p>
+  <button id="restartbtn">RUN IT AGAIN</button>
+</div>
+
+<script>
+const desktop = document.getElementById('desktop');
+let openCount = 0;
+let totalSpawned = 0;
+const MAX_TOTAL = 60;
+
+function rand(min,max){ return Math.random()*(max-min)+min; }
+
+// ---------- eye SVG ----------
+function eyeSVG(){
+  const jitterX = rand(-4,4), jitterY = rand(-3,3);
+  return `
+  <svg class="eye-svg" viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="sclera${totalSpawned}" cx="50%" cy="45%" r="65%">
+        <stop offset="0%" stop-color="#2a2a2a"/>
+        <stop offset="60%" stop-color="#0c0c0c"/>
+        <stop offset="100%" stop-color="#000"/>
+      </radialGradient>
+      <radialGradient id="iris${totalSpawned}" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#111"/>
+        <stop offset="70%" stop-color="#050505"/>
+        <stop offset="100%" stop-color="#000"/>
+      </radialGradient>
+    </defs>
+    <ellipse cx="100" cy="70" rx="95" ry="55" fill="url(#sclera${totalSpawned})"/>
+    <circle cx="${100+jitterX}" cy="${70+jitterY}" r="30" fill="url(#iris${totalSpawned})" stroke="#333" stroke-width="1"/>
+    <circle cx="${100+jitterX}" cy="${70+jitterY}" r="14" fill="#000"/>
+    <circle cx="${94+jitterX}" cy="${62+jitterY}" r="4" fill="#fff" opacity="0.7"/>
+    <ellipse cx="100" cy="70" rx="95" ry="55" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+  </svg>`;
+}
+
+// ---------- terminal content ----------
+const termCommands = [
+"help - Show this help menu",
+"malware - Learn about Malware",
+"dos - Learn about Denial-of-Service",
+"phishing - Learn about Phishing",
+"spoofing - Learn about Spoofing",
+"code-injection - Learn about Code Injection",
+"supply-chain - Learn about Supply Chain",
+"social-engineering - Learn about Social Engineering",
+"insider-threats - Learn about Insider Threats",
+"dns-tunneling - Learn about DNS Tunneling",
+"iot-attacks - Learn about IoT-Based attacks",
+"ai-powered - Learn about AI-Powered attacks",
+"exit - Exit the application"
+];
+
+function hex(len){
+  const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let s="";
+  for(let i=0;i<len;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+function buildTerminal(el){
+  const lines = [];
+  lines.push('<span class="cmdline">Available commands:</span>');
+  termCommands.forEach(c=>lines.push('<span class="cmdline">'+c+'</span>'));
+  lines.push('<span class="warn">Denial-of-Service attacks aim to make a machine or network resource unavailable by overwhelming it with requests.</span>');
+  lines.push('Initiating DoS Attack simulation...');
+  el.innerHTML = lines.join('\n');
+
+  const feed = document.createElement('div');
+  el.appendChild(feed);
+
+  let stopped = false;
+  el._stopFeed = ()=>{ stopped = true; };
+
+  function tick(){
+    if(stopped) return;
+    const line = document.createElement('div');
+    line.className='flood';
+    line.textContent = '[FLOOD] >>> '+hex(rand(20,34))+' Attempting...';
+    feed.appendChild(line);
+    while(feed.childNodes.length>40) feed.removeChild(feed.firstChild);
+    el.scrollTop = el.scrollHeight;
+    setTimeout(tick, rand(90,220));
+  }
+  tick();
+}
+
+// ---------- window factory ----------
+const winTypes = ['eye','terminal'];
+let zTop = 100;
+
+function spawnWindow(){
+  if(openCount > 9) return; // cap concurrent chaos
+  totalSpawned++;
+  const w = document.createElement('div');
+  w.className='window';
+  const width = rand(230,300);
+  const isTerm = Math.random() < 0.22;
+  const height = isTerm ? rand(260,340) : rand(240,300);
+  const left = rand(0, Math.max(0, window.innerWidth - width - 40));
+  const top = rand(20, Math.max(20, window.innerHeight - height - 100));
+  w.style.width = width+'px';
+  w.style.height = height+'px';
+  w.style.left = left+'px';
+  w.style.top = top+'px';
+  w.style.zIndex = ++zTop;
+  w.style.transform = 'rotate('+rand(-1.5,1.5)+'deg)';
+
+  const title = document.createElement('div');
+  title.className='titlebar';
+  const label = document.createElement('span');
+  label.className='label';
+  label.textContent = isTerm ? 'Command' : (Math.random()<0.5 ? 'ERROR' : 'System32.exe - Application Error');
+  const closeBtn = document.createElement('div');
+  closeBtn.className='closebtn';
+  closeBtn.textContent = '\u2715';
+  title.appendChild(label);
+  title.appendChild(closeBtn);
+
+  const body = document.createElement('div');
+  body.className='win-body';
+
+  if(isTerm){
+    body.style.display='block';
+    body.style.background='#000';
+    const term = document.createElement('div');
+    term.className='term-body';
+    body.appendChild(term);
+    w.appendChild(title);
+    w.appendChild(body);
+    desktop.appendChild(w);
+    buildTerminal(term);
+  } else {
+    const wrap = document.createElement('div');
+    wrap.className='eyewrap';
+    wrap.innerHTML = eyeSVG();
+    body.appendChild(wrap);
+
+    if(Math.random()<0.7){
+      const stamp = document.createElement('div');
+      stamp.className='error-stamp';
+      stamp.textContent='ERROR';
+      stamp.style.left = rand(0,40)+'%';
+      body.appendChild(stamp);
+    }
+    const cap = document.createElement('div');
+    cap.className='caption';
+    cap.textContent = Math.random()<0.5 ? 'Something Wrong with This game' : 'unexpected error occurred';
+    body.appendChild(cap);
+
+    w.appendChild(title);
+    w.appendChild(body);
+    desktop.appendChild(w);
+  }
+
+  openCount++;
+
+  function bringFront(){ w.style.zIndex = ++zTop; }
+  w.addEventListener('mousedown', bringFront);
+
+  closeBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if(w._stopped) return;
+    w._stopped = true;
+    const term = w.querySelector('.term-body');
+    if(term && term._stopFeed) term._stopFeed();
+    w.classList.add('closing');
+    setTimeout(()=>{
+      w.remove();
+      openCount--;
+      checkEnd();
+    }, 180);
+  });
+}
+
+function checkEnd(){
+  if(totalSpawned >= MAX_TOTAL && openCount<=0){
+    document.getElementById('finalscreen').style.display='flex';
+  }
+}
+
+// ---------- background decoration ----------
+function spawnDecor(){
+  // glitch bars
+  for(let i=0;i<5;i++){
+    const bar = document.createElement('div');
+    bar.className='glitchbar';
+    const colors = ['#8a7a1a','#123a7a','#0f2a4a','#5c5c5c','#3a7a4a','#6b1a3a'];
+    bar.style.background = colors[Math.floor(Math.random()*colors.length)];
+    bar.style.width = rand(60,130)+'px';
+    bar.style.left = rand(0,90)+'%';
+    bar.style.top = rand(5,90)+'%';
+    bar.style.animationDelay = rand(0,2)+'s';
+    desktop.appendChild(bar);
+  }
+  // floating ERROR text
+  for(let i=0;i<3;i++){
+    const e = document.createElement('div');
+    e.className='bgerror';
+    e.textContent='ERROR';
+    e.style.left = rand(0,75)+'%';
+    e.style.top = rand(5,85)+'%';
+    e.style.fontSize = rand(28,52)+'px';
+    e.style.animationDelay = rand(0,1)+'s';
+    desktop.appendChild(e);
+  }
+  // icon boxes
+  const iconBox1 = document.createElement('div');
+  iconBox1.className='icon-box';
+  iconBox1.textContent='Crash';
+  iconBox1.style.left='20px'; iconBox1.style.top='30px';
+  desktop.appendChild(iconBox1);
+
+  const iconBox2 = document.createElement('div');
+  iconBox2.className='icon-box';
+  iconBox2.textContent='???';
+  iconBox2.style.left='20px'; iconBox2.style.top='100px';
+  desktop.appendChild(iconBox2);
+}
+
+// ---------- clock ----------
+function updateClock(){
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent = hh+':'+mm;
+}
+updateClock();
+setInterval(updateClock, 10000);
+
+// ---------- boot sequence ----------
+function boot(){
+  desktop.innerHTML='';
+  document.getElementById('finalscreen').style.display='none';
+  openCount = 0; totalSpawned = 0; zTop = 100;
+  spawnDecor();
+  for(let i=0;i<5;i++){
+    setTimeout(spawnWindow, i*300);
+  }
+  const spawner = setInterval(()=>{
+    if(totalSpawned >= MAX_TOTAL){ clearInterval(spawner); return; }
+    spawnWindow();
+  }, 1800);
+}
+
+document.getElementById('restartbtn').addEventListener('click', boot);
+
+boot();
+</script>
+</body>
+</html>
