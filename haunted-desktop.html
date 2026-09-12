@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYSTEM_ERROR.exe</title>
+<style>
+  :root{
+    --bg1:#150a2e;
+    --bg2:#3a1466;
+    --bg3:#7a1f8f;
+    --void:#050109;
+    --err-red:#ff1f3d;
+    --term-green:#33ff6a;
+    --chrome:#d8d3ea;
+    --chrome-dark:#8b84ad;
+    --titlebar:#5b3e8e;
+    --bsod-blue:#0a1e46;
+    --mono: 'Consolas','Courier New',monospace;
+    --ui: 'Segoe UI', Tahoma, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;height:100%;overflow:hidden;
+    font-family:var(--ui);
+    cursor:default;
+    -webkit-user-select:none;user-select:none;
+  }
+  #desktop{
+    position:fixed;inset:0;
+    background:
+      radial-gradient(ellipse at 20% 30%, rgba(255,40,90,0.10), transparent 55%),
+      linear-gradient(125deg, var(--bg1), var(--bg2) 45%, var(--bg3) 75%, var(--bg1));
+    background-size:180% 180%;
+    animation: driftBg 22s ease-in-out infinite alternate;
+    height:calc(100% - 44px);
+    width:100%;
+    overflow:hidden;
+  }
+  @keyframes driftBg{
+    0%{background-position:0% 20%;}
+    100%{background-position:100% 80%;}
+  }
+  #desktop::after{
+    content:"";
+    position:absolute;inset:0;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 3px);
+    opacity:0.25;
+    pointer-events:none;
+  }
+  .vignette-flicker{
+    position:absolute;inset:0;pointer-events:none;
+    box-shadow: inset 0 0 220px rgba(255,0,40,0);
+    animation: flick 7s infinite;
+  }
+  @keyframes flick{
+    0%,92%,100%{ box-shadow: inset 0 0 220px rgba(255,0,40,0); }
+    93%{ box-shadow: inset 0 0 260px rgba(255,0,40,0.35); }
+    94%{ box-shadow: inset 0 0 220px rgba(255,0,40,0); }
+    95%{ box-shadow: inset 0 0 300px rgba(255,0,40,0.25); }
+  }
+
+  /* ---------- desktop icons ---------- */
+  .icon{
+    position:absolute;
+    width:74px;
+    padding:8px 4px;
+    text-align:center;
+    color:#eee;
+    font-size:12px;
+    text-shadow:0 1px 2px #000;
+    cursor:pointer;
+    z-index:1;
+  }
+  .icon .box{
+    width:44px;height:44px;margin:0 auto 4px;
+    background:#f2f0f7;
+    border:2px solid #2b2140;
+    border-radius:3px;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;color:#1a1330;
+    box-shadow:2px 2px 0 rgba(0,0,0,0.4);
+  }
+  .icon:active .box{ transform:translate(1px,1px); }
+
+  /* ---------- generic window chrome ---------- */
+  .win{
+    position:absolute;
+    background:var(--chrome);
+    border:1px solid #241a3d;
+    border-radius:6px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.55);
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  .titlebar{
+    height:26px;flex:0 0 26px;
+    background:linear-gradient(180deg, var(--titlebar), #3d2966);
+    display:flex;align-items:center;
+    padding:0 6px;
+    cursor:grab;
+    color:#f1e9ff;font-size:12px;font-weight:600;
+    letter-spacing:.2px;
+  }
+  .titlebar:active{ cursor:grabbing; }
+  .titlebar .ttl{ flex:1; overflow:hidden;white-space:nowrap;text-overflow:ellipsis; }
+  .titlebar .btn{
+    width:20px;height:18px;margin-left:4px;
+    background:#eee;border:1px solid #241a3d;border-radius:2px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:#241a3d;font-weight:700;line-height:1;
+    cursor:pointer;
+  }
+  .titlebar .btn.close:hover{ background:var(--err-red); color:#fff; }
+  .win .body{
+    flex:1;background:#000;position:relative;overflow:hidden;
+  }
+
+  /* eye window content */
+  .eye-wrap{
+    position:absolute;inset:0;background:#050505;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .eyeball{
+    width:70%;aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle at 50% 45%, #e9e6e2 0%, #cfc9c2 45%, #86807b 70%, #2a2724 100%);
+    position:relative;
+    box-shadow:0 0 30px rgba(0,0,0,0.8) inset;
+  }
+  .pupil{
+    position:absolute;width:34%;height:34%;border-radius:50%;
+    background:radial-gradient(circle at 40% 35%, #2a2a2a, #000 70%);
+    top:33%;left:33%;
+    transition:transform .6s ease;
+  }
+
+  /* ERROR floating glitch text */
+  .glitch-err{
+    position:absolute;
+    color:var(--err-red);
+    font-family:var(--mono);
+    font-weight:800;
+    font-size:38px;
+    letter-spacing:2px;
+    text-shadow:2px 0 #00eaff, -2px 0 #ff00c8;
+    z-index:1;
+    animation: jitter 2.4s infinite;
+    pointer-events:none;
+  }
+  @keyframes jitter{
+    0%,100%{ transform:translate(0,0); opacity:1;}
+    45%{ transform:translate(1px,-1px); opacity:.85;}
+    50%{ transform:translate(-2px,1px); opacity:1;}
+    55%{ transform:translate(2px,0); opacity:.7;}
+  }
+  .color-bar{
+    position:absolute;height:22px;width:110px;opacity:.9;z-index:1;pointer-events:none;
+  }
+
+  /* terminal content */
+  .term{
+    position:absolute;inset:0;background:#020402;
+    font-family:var(--mono);color:var(--term-green);
+    font-size:11.5px;line-height:1.5;padding:8px;
+    overflow:hidden;white-space:pre-wrap;word-break:break-all;
+  }
+  .term b{ color:#8dffab; }
+
+  /* mini error window (spawned chaos) */
+  .mini{
+    width:190px;height:120px;
+  }
+  .mini .body{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:6px;background:#0c0c0c;
+  }
+  .mini .msg{
+    color:var(--err-red);font-family:var(--mono);font-size:13px;font-weight:700;
+    text-align:center;padding:0 8px;
+  }
+  .mini .code{
+    color:#888;font-family:var(--mono);font-size:9px;
+  }
+
+  /* ---------- taskbar ---------- */
+  #taskbar{
+    position:fixed;left:0;right:0;bottom:0;height:44px;
+    background:#0b0713;border-top:1px solid #2a1f45;
+    display:flex;align-items:center;gap:10px;padding:0 8px;
+    z-index:99999;
+  }
+  #startbtn{
+    display:flex;align-items:center;gap:6px;
+    background:#1c1330;border:1px solid #3a2a5c;border-radius:4px;
+    color:#eee;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;
+  }
+  #startbtn:hover{ background:#2a1e46; }
+  #search{
+    flex:0 0 260px;max-width:35vw;
+    background:#150e24;border:1px solid #3a2a5c;border-radius:4px;
+    color:#9a90b8;font-size:12px;padding:7px 10px;
+  }
+  #wincount{
+    margin-left:auto;color:#8a7fb0;font-size:12px;font-family:var(--mono);
+  }
+  #clock{
+    color:#eee;font-size:13px;font-family:var(--mono);padding-left:10px;border-left:1px solid #3a2a5c;
+  }
+
+  /* ---------- BSOD ---------- */
+  #bsod{
+    position:fixed;inset:0;background:var(--bsod-blue);
+    color:#fff;z-index:999999;
+    font-family:var(--ui);
+    display:none;flex-direction:column;
+    padding:8vh 10vw;
+    cursor:default;
+  }
+  #bsod .face{ font-size:90px;font-weight:400;line-height:1;margin-bottom:20px; }
+  #bsod h1{ font-size:26px;font-weight:400;margin:0 0 18px; max-width:760px; }
+  #bsod p{ font-size:15px;line-height:1.6;max-width:640px;color:#d8e2f5; }
+  #bsod .pct{ font-size:15px;margin-top:26px; }
+  #bsod .stop{ margin-top:40px;font-size:13px;color:#b9c6e6; }
+  #bsod .qr{
+    position:absolute;right:10vw;top:8vh;width:110px;height:110px;
+    background:
+      repeating-linear-gradient(0deg,#fff 0 6px, #0a1e46 6px 12px),
+      repeating-linear-gradient(90deg,#fff 0 6px, transparent 6px 12px);
+  }
+  #bsod.freeze{ filter:grayscale(1) contrast(1.2); }
+  #bsod .restart-hint{
+    margin-top:60px;font-size:13px;color:#9fb0d8;opacity:0;transition:opacity .6s;
+  }
+  #bsod .restart-hint.show{ opacity:1; cursor:pointer; }
+
+  #staticnoise{
+    position:fixed;inset:0;z-index:1000000;display:none;
+    background:repeating-conic-gradient(#111 0% 0.5%, #eee 0.5% 1%);
+    opacity:0.06;mix-blend-mode:overlay;pointer-events:none;
+  }
+</style>
+</head>
+<body>
+
+<div id="desktop">
+  <div class="vignette-flicker"></div>
+
+  <div class="icon" style="left:20px;top:16px;" onclick="triggerBSOD()">
+    <div class="box">Crash</div>
+    system_dump
+  </div>
+  <div class="icon" style="left:20px;top:280px;" onclick="spawnChaos(6)">
+    <div class="box">???</div>
+    unknown.exe
+  </div>
+</div>
+
+<div id="taskbar">
+  <div id="startbtn" onclick="spawnChaos(3)">⊞ Start</div>
+  <input id="search" placeholder="Type here to search" disabled>
+  <div id="wincount">windows open: 0</div>
+  <div id="clock">00:00</div>
+</div>
+
+<div id="bsod">
+  <div class="qr"></div>
+  <div class="face">:(</div>
+  <h1>Your PC ran into a problem and needs to restart.</h1>
+  <p>We're just collecting some error info, and then we'll restart for you. It looks like too many windows tried to open at once and the system couldn't keep up.</p>
+  <div class="pct" id="bsodpct">0% complete</div>
+  <div class="stop">Stop code: CHAOS_WINDOW_OVERFLOW</div>
+  <div class="restart-hint" id="restarthint" onclick="rebootDesktop()">The screen has stopped responding. Click anywhere to restart.</div>
+</div>
+<div id="staticnoise"></div>
+
+<script>
+const desktop = document.getElementById('desktop');
+const wincountEl = document.getElementById('wincount');
+let zTop = 10;
+let openWindows = 0;
+const MAX_WINDOWS = 160;
+
+function bringToFront(el){ zTop += 1; el.style.zIndex = zTop; }
+
+function makeDraggable(win, handle){
+  let sx=0, sy=0, ox=0, oy=0, dragging=false;
+  handle.addEventListener('pointerdown', e=>{
+    dragging = true;
+    bringToFront(win);
+    sx = e.clientX; sy = e.clientY;
+    const r = win.getBoundingClientRect();
+    ox = r.left; oy = r.top;
+    handle.setPointerCapture(e.pointerId);
+  });
+  handle.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    const nx = ox + (e.clientX - sx);
+    const ny = oy + (e.clientY - sy);
+    win.style.left = Math.max(-40, nx) + 'px';
+    win.style.top = Math.max(-10, Math.min(ny, window.innerHeight-70)) + 'px';
+  });
+  handle.addEventListener('pointerup', ()=> dragging=false);
+  handle.addEventListener('pointercancel', ()=> dragging=false);
+}
+
+function updateCount(){ wincountEl.textContent = 'windows open: ' + openWindows; }
+
+function closeWindow(win){
+  win.remove();
+  openWindows--; updateCount();
+  if(openWindows + 55 > MAX_WINDOWS){
+    triggerBSOD();
+  } else {
+    spawnChaos(55);
+  }
+}
+
+function baseWindow(x, y, w, h, title){
+  const win = document.createElement('div');
+  win.className = 'win';
+  win.style.left = x+'px'; win.style.top = y+'px';
+  win.style.width = w+'px'; win.style.height = h+'px';
+  bringToFront(win);
+  const tb = document.createElement('div');
+  tb.className = 'titlebar';
+  tb.innerHTML = '<span class="ttl">'+title+'</span><div class="btn close">×</div>';
+  const body = document.createElement('div');
+  body.className = 'body';
+  win.appendChild(tb); win.appendChild(body);
+  desktop.appendChild(win);
+  makeDraggable(win, tb);
+  win.addEventListener('pointerdown', ()=> bringToFront(win));
+  tb.querySelector('.close').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    closeWindow(win);
+  });
+  openWindows++; updateCount();
+  return {win, body};
+}
+
+function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+const vw = ()=> window.innerWidth;
+const vh = ()=> window.innerHeight - 60;
+
+function makeEyeWindow(x,y,w,h){
+  const {body} = baseWindow(x,y,w,h,'ERROR');
+  body.innerHTML = '<div class="eye-wrap"><div class="eyeball"><div class="pupil"></div></div></div>';
+  const pupil = body.querySelector('.pupil');
+  setInterval(()=>{
+    if(!document.body.contains(pupil)) return;
+    pupil.style.transform = `translate(${randInt(-8,8)}px, ${randInt(-6,6)}px)`;
+  }, 900 + Math.random()*700);
+}
+
+function makeMiniError(x,y){
+  const msgs = ['MEMORY VIOLATION','NULL_POINTER','SYSTEM CORRUPT','ACCESS DENIED','UNKNOWN ERROR','THREAD_STUCK','FILE NOT FOUND','KERNEL_FAULT'];
+  const {body} = baseWindow(x,y,190,120,'ERROR');
+  const code = 'x0' + Math.random().toString(16).slice(2,8).toUpperCase();
+  body.innerHTML = `<div class="msg">${msgs[randInt(0,msgs.length-1)]}</div><div class="code">${code}</div>`;
+}
+
+function randHex(len){
+  const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#!@';
+  let s=''; for(let i=0;i<len;i++) s+=chars[randInt(0,chars.length-1)];
+  return s;
+}
+
+function makeTerminal(x,y,w,h){
+  const {body} = baseWindow(x,y,w,h,'Command');
+  body.classList.add('term');
+  const lines = [
+    'Initiating DoS Attack...',
+    '[FLOOD] >>> ' + randHex(28),
+    'Attacking target node...',
+    randHex(34),
+    '<b>Available commands:</b> help, dos, phishing, spoofing, exit'
+  ];
+  body.innerHTML = lines.join('\n');
+  const iv = setInterval(()=>{
+    if(!document.body.contains(body)){ clearInterval(iv); return; }
+    body.textContent += '\n[FLOOD] >>> ' + randHex(30);
+    body.scrollTop = body.scrollHeight;
+  }, 500);
+}
+
+function makeGlitchText(x,y){
+  const el = document.createElement('div');
+  el.className='glitch-err';
+  el.textContent='ERROR';
+  el.style.left=x+'px'; el.style.top=y+'px';
+  el.style.animationDelay = (Math.random()*2)+'s';
+  desktop.appendChild(el);
+}
+
+function makeColorBar(x,y){
+  const colors=['#8a7a1f','#1a2b57','#2f6e4a','#5a1e46','#3f3aa3'];
+  const el=document.createElement('div');
+  el.className='color-bar';
+  el.style.left=x+'px'; el.style.top=y+'px';
+  el.style.background=colors[randInt(0,colors.length-1)];
+  desktop.appendChild(el);
+}
+
+function spawnChaos(n){
+  for(let i=0;i<n;i++){
+    if(openWindows >= MAX_WINDOWS){ triggerBSOD(); return; }
+    const x = randInt(0, Math.max(10, vw()-200));
+    const y = randInt(0, Math.max(10, vh()-140));
+    const roll = Math.random();
+    if(roll < 0.65){ makeMiniError(x,y); }
+    else if(roll < 0.85){ makeGlitchText(x,y); }
+    else { makeColorBar(x,y); }
+  }
+}
+
+function initialDesktop(){
+  makeEyeWindow(140, 60, 260, 300);
+  makeEyeWindow(600, 240, 300, 340);
+  makeEyeWindow(1020, 340, 260, 300);
+  makeTerminal(1160, 60, 420, 420);
+  makeGlitchText(90,130);
+  makeGlitchText(560,220);
+  makeColorBar(60,120);
+  makeColorBar(280,300);
+}
+
+function triggerBSOD(){
+  document.querySelectorAll('.win, .glitch-err, .color-bar').forEach(e=>e.remove());
+  openWindows = 0; updateCount();
+  const bsod = document.getElementById('bsod');
+  const pct = document.getElementById('bsodpct');
+  const hint = document.getElementById('restarthint');
+  bsod.style.display='flex';
+  bsod.classList.remove('freeze');
+  hint.classList.remove('show');
+  let p = 0;
+  const iv = setInterval(()=>{
+    p += randInt(3,9);
+    if(p>=100){ p=100; clearInterval(iv);
+      document.getElementById('staticnoise').style.display='block';
+      setTimeout(()=>{
+        bsod.classList.add('freeze');
+        setTimeout(()=> hint.classList.add('show'), 1600);
+      }, 500);
+    }
+    pct.textContent = p + '% complete';
+  }, 220);
+}
+
+function rebootDesktop(){
+  document.getElementById('bsod').style.display='none';
+  document.getElementById('staticnoise').style.display='none';
+  document.getElementById('bsodpct').textContent='0% complete';
+  initialDesktop();
+}
+
+function tickClock(){
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2,'0');
+  const m = String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent = h+':'+m;
+}
+setInterval(tickClock, 1000); tickClock();
+
+initialDesktop();
+</script>
+</body>
+</html>
